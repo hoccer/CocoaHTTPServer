@@ -13,7 +13,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
     NSError * error = nil;
     NSDictionary * attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:myFilePath error:&error];
     if (error != nil) {
-        NSLog(@"Error setting posix permission for path %@, error=%@", myFilePath, error);
+        NSLog(@"Error getting posix permission for path %@, error=%@", myFilePath, error);
         return -1;
     }
     return [attributes filePosixPermissions];
