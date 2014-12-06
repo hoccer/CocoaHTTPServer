@@ -2516,7 +2516,7 @@ static NSMutableArray *recentNonces;
 		}
 		else
 		{
-			if (ranges == nil)
+			if (ranges == nil || ranges.count == 0)
 			{
 				[self continueSendingStandardResponseBody];
 			}
