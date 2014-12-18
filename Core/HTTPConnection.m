@@ -975,16 +975,17 @@ static NSMutableArray *recentNonces;
 		return;
 	}
 	
-	// Check Authentication (if needed)
+    // Extract the method
+    NSString *method = [request method];
+
+    // Check Authentication (if needed)
 	// If not properly authenticated for resource, issue Unauthorized response
-	if ([self isPasswordProtected:uri] && ![self isAuthenticated])
+	if (![method isEqualToString:@"OPTIONS"] && [self isPasswordProtected:uri] && ![self isAuthenticated])
 	{
 		[self handleAuthenticationFailed];
 		return;
 	}
 	
-	// Extract the method
-	NSString *method = [request method];
 	
 	// Note: We already checked to ensure the method was supported in onSocket:didReadData:withTag:
 	
@@ -2051,6 +2052,9 @@ static NSMutableArray *recentNonces;
 			
 			// Extract the uri (such as "/index.html")
 			NSString *uri = [self requestURI];
+            
+            //NSLog(@"Method=%@ URI=%@", method, uri);
+            //NSLog(@"Headers=%@", [request allHeaderFields]);
 			
 			// Check for a Transfer-Encoding field
 			NSString *transferEncoding = [request headerField:@"Transfer-Encoding"];
@@ -2061,6 +2065,7 @@ static NSMutableArray *recentNonces;
 			// Content-Length MUST be present for upload methods (such as POST or PUT)
 			// and MUST NOT be present for other methods.
 			BOOL expectsUpload = [self expectsRequestBodyFromMethod:method atPath:uri];
+            //NSLog(@"transferEncoding=%@, contentLength=%@, expectsUpload=%d", transferEncoding, contentLength, expectsUpload );
 			
 			if (expectsUpload)
 			{

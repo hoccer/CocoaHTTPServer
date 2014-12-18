@@ -12,6 +12,7 @@
 // Log levels : off, error, warn, info, verbose
 // Other flags: trace
 static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
+//static const int httpLogLevel = HTTP_LOG_LEVEL_VERBOSE | HTTP_LOG_FLAG_TRACE;
 
 #define NULL_FD  -1
 
@@ -32,6 +33,12 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
  * we don't open the file until we have to (until the connection starts requesting data).
 **/
 
+@interface HTTPAsyncFileResponse ()
+{
+    NSDictionary *fileAttributes;
+}
+@end
+
 @implementation HTTPAsyncFileResponse
 
 - (id)initWithFilePath:(NSString *)fpath forConnection:(HTTPConnection *)parent
@@ -51,7 +58,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
 			return nil;
 		}
 		
-		NSDictionary *fileAttributes = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:NULL];
+		fileAttributes = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:NULL];
 		if (fileAttributes == nil)
 		{
 			HTTPLogWarn(@"%@: Init failed - Unable to get file attributes. filePath: %@", THIS_FILE, filePath);
@@ -69,6 +76,21 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
 	}
 	return self;
 }
+
+- (NSDictionary *)httpHeaders {
+    NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
+    formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+    formatter.timeZone = [NSTimeZone timeZoneWithName:@"GMT"];
+    formatter.dateFormat = @"EEE', 'd' 'MMM' 'yyyy' 'HH:mm:ss' GMT'";
+    NSString * lastModified = [formatter stringFromDate:[fileAttributes fileModificationDate]];
+    
+    NSDictionary * dict = @{@"Content-Length" : @([self contentLength]).stringValue,
+                            @"Content-Type" : @"application/octet-stream",
+                            @"Last-Modified": lastModified};
+    // NSLog(@"HTTPFileResponse: returning headers:%@", dict);
+    return dict;
+}
+
 
 - (void)abort
 {

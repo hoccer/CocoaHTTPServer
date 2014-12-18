@@ -38,25 +38,31 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
   if ([method isEqualToString:@"COPY"]) return YES;
   if ([method isEqualToString:@"LOCK"]) return YES;
   if ([method isEqualToString:@"UNLOCK"]) return YES;
-  
+
+  // POSTResponse
+  //if ([method isEqualToString:@"POST"]) return YES;
+
   return NO;
 }
 
 - (BOOL) expectsRequestBodyFromMethod:(NSString*)method atPath:(NSString*)path {
-  // PUTResponse
-  if ([method isEqualToString:@"PUT"]) {
-    return YES;
-	}
-  
-  // DAVResponse
-  if ([method isEqual:@"PROPFIND"] || [method isEqual:@"MKCOL"]) {
-    return [request headerField:@"Content-Length"] ? YES : NO;
-  }
-  if ([method isEqual:@"LOCK"]) {
-    return YES;
-  }
-  
-  return NO;
+    // PUTResponse
+    if ([method isEqualToString:@"PUT"]) {
+        return YES;
+    }
+    if ([method isEqual:@"POST"]) {
+        return YES;
+    }
+    
+    // DAVResponse
+    if ([method isEqual:@"PROPFIND"] || [method isEqual:@"MKCOL"]) {
+        return [request headerField:@"Content-Length"] ? YES : NO;
+    }
+    if ([method isEqual:@"LOCK"]) {
+        return YES;
+    }
+    
+    return NO;
 }
 
 - (void) prepareForBodyWithSize:(UInt64)contentLength {

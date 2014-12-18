@@ -15,6 +15,11 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
 
 #define NULL_FD  -1
 
+@interface HTTPFileResponse ()
+{
+    NSDictionary *fileAttributes;
+}
+@end
 
 @implementation HTTPFileResponse
 
@@ -35,7 +40,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
 			return nil;
 		}
 		
-		NSDictionary *fileAttributes = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:nil];
+		fileAttributes = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:nil];
 		if (fileAttributes == nil)
 		{
 			HTTPLogWarn(@"%@: Init failed - Unable to get file attributes. filePath: %@", THIS_FILE, filePath);
@@ -52,6 +57,20 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
 		// If this is a HEAD request we only need to know the fileLength.
 	}
 	return self;
+}
+
+- (NSDictionary *)httpHeaders {
+    NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
+    formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+    formatter.timeZone = [NSTimeZone timeZoneWithName:@"GMT"];
+    formatter.dateFormat = @"EEE', 'd' 'MMM' 'yyyy' 'HH:mm:ss' GMT'";
+    NSString * lastModified = [formatter stringFromDate:[fileAttributes fileModificationDate]];
+    
+    NSDictionary * dict = @{@"Content-Length" : @([self contentLength]).stringValue,
+                            @"Content-Type" : @"application/octet-stream",
+                            @"Last-Modified": lastModified};
+    //NSLog(@"HTTPFileResponse: returning headers:%@", dict);
+    return dict;
 }
 
 - (void)abort
