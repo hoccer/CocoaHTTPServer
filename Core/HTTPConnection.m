@@ -19,6 +19,7 @@
 // Log levels: off, error, warn, info, verbose
 // Other flags: trace
 static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
+//static const int httpLogLevel = HTTP_LOG_LEVEL_WARN | HTTP_LOG_FLAG_TRACE;
 
 // Define chunk size used to read in data for responses
 // This is how much data will be read from disk into RAM at a time
@@ -2065,7 +2066,7 @@ static NSMutableArray *recentNonces;
 			// Content-Length MUST be present for upload methods (such as POST or PUT)
 			// and MUST NOT be present for other methods.
 			BOOL expectsUpload = [self expectsRequestBodyFromMethod:method atPath:uri];
-            //NSLog(@"transferEncoding=%@, contentLength=%@, expectsUpload=%d", transferEncoding, contentLength, expectsUpload );
+            HTTPLogTrace2(@"transferEncoding=%@, contentLength=%@, expectsUpload=%d", transferEncoding, contentLength, expectsUpload );
 			
 			if (expectsUpload)
 			{

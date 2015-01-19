@@ -119,6 +119,30 @@ static void _AddPropertyResponse(NSString* itemPath, NSString* resourcePath, DAV
     }
 }
 
+static void _AddPropPatchResponse(NSString* itemPath, NSString* resourcePath, NSArray* propertyNames, NSString* statusString, NSMutableString* xmlString) {
+    CFStringRef escapedPath = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (__bridge CFStringRef)resourcePath, NULL,
+                                                                      CFSTR("<&>?+"), kCFStringEncodingUTF8);
+    if (escapedPath) {
+        [xmlString appendString:@"<D:response>"];
+        [xmlString appendFormat:@"<D:href>%@</D:href>", escapedPath];
+        [xmlString appendString:@"<D:propstat>"];
+        [xmlString appendString:@"<D:prop>"];
+        
+        for (NSString * propertyName in propertyNames) {
+            [xmlString appendFormat:@"<%@/>",propertyName];
+        }
+
+        [xmlString appendString:@"</D:prop>"];
+        [xmlString appendFormat:@"<D:status>HTTP/1.1 %@</D:status>", statusString];
+        [xmlString appendString:@"</D:propstat>"];
+        [xmlString appendString:@"</D:response>\n"];
+        CFRelease(escapedPath);
+        // NSLog(@"_AddPropertyResponseError: set response:\n %@", xmlString);
+    }
+}
+
+
+
 static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
     while (child) {
         if ((child->type == XML_ELEMENT_NODE) && !xmlStrcmp(child->name, name)) {
@@ -140,6 +164,65 @@ static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
                 [_headers setObject:@"1, 2" forKey:@"DAV"];
             } else {
                 [_headers setObject:@"1" forKey:@"DAV"];
+            }
+        }
+
+        // 8.2 PROPPATCH Method
+        
+        if ([method isEqualToString:@"PROPPATCH"]) {
+            // Fake PROPPATCH, do not actually store dead properties in order to avoid Windows 7 error dialog
+            
+            NSString* basePath = [rootPath stringByAppendingPathComponent:resourcePath];
+            if (![basePath hasPrefix:rootPath] || ![[NSFileManager defaultManager] fileExistsAtPath:basePath]) {
+                return nil;
+            }
+            
+            NSMutableString* xmlString = [NSMutableString stringWithString:@"<?xml version=\"1.0\" encoding=\"utf-8\" ?>"];
+            [xmlString appendString:@"<D:multistatus xmlns:D=\"DAV:\">\n"];
+            if (![resourcePath hasPrefix:@"/"]) {
+                resourcePath = [@"/" stringByAppendingString:resourcePath];
+            }
+            
+            NSMutableArray * propertyNames = [NSMutableArray new];
+            
+            //NSString * testBody = [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding];
+            //NSLog(@"PROPPATCH body=%@", testBody);
+            
+            xmlDocPtr document = xmlReadMemory(body.bytes, (int)body.length, NULL, NULL, kXMLParseOptions);
+            if (document) {
+                xmlNodePtr updateNode = _XMLChildWithName(document->children, (const xmlChar*)"propertyupdate");
+                if (updateNode) {
+                    xmlNodePtr command = updateNode->children;
+                    while (command) {
+                        xmlNodePtr property = command->children;
+                        if (command) {
+                            property = _XMLChildWithName(command->children, (const xmlChar*)"prop");
+                        }
+                        property = property->children;
+                        while (property) {
+                            if (property->type == XML_ELEMENT_NODE) {
+                                // NSLog(@"propertyupdate: cmd = %s, property = %s", command->name, property->name);
+                                [propertyNames addObject:[NSString stringWithCString:(char*)property->name encoding:NSUTF8StringEncoding]];
+                            }
+                            property = property->next;
+                        }
+                        command = command->next;
+
+                    }
+
+                }
+                xmlFreeDoc(document);
+            }
+            if (propertyNames.count > 0) {
+                _AddPropPatchResponse(basePath, resourcePath, propertyNames, @"200 OK", xmlString);
+                [xmlString appendString:@"</D:multistatus>"];
+                
+                [_headers setObject:@"application/xml; charset=\"utf-8\"" forKey:@"Content-Type"];
+                _data = [xmlString dataUsingEncoding:NSUTF8StringEncoding];
+                _status = 207;
+            } else {
+                HTTPLogWarn(@"HTTP Server: Invalid PROPPATCH DAV properties\n%@", [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding]);
+                _status = 400;
             }
         }
         
@@ -342,7 +425,7 @@ static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
                     token = [lockToken stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"(<>)"]];
                 }
             }
-            if ([scope isEqualToString:@"exclusive"] && [type isEqualToString:@"write"] && [depth isEqualToString:@"0"] &&
+            if ([scope isEqualToString:@"exclusive"] && [type isEqualToString:@"write"] && (depth == nil ||[depth isEqualToString:@"0"]) &&
                 ([[NSFileManager defaultManager] fileExistsAtPath:path] || [[NSData data] writeToFile:path atomically:YES])) {
                 NSString* timeout = [headers objectForKey:@"Timeout"];
                 if (!token) {
@@ -394,7 +477,7 @@ static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
         
     }
     
-    //NSLog(@"DAV responding with status %ld data:\n%@", (long)_status, [[NSString alloc] initWithData:_data encoding:NSUTF8StringEncoding]);
+    // NSLog(@"DAV responding with status %ld data:\n%@", (long)_status, [[NSString alloc] initWithData:_data encoding:NSUTF8StringEncoding]);
     return self;
 }
 

@@ -33,6 +33,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
   // DAVResponse
   if ([method isEqualToString:@"OPTIONS"]) return YES;
   if ([method isEqualToString:@"PROPFIND"]) return YES;
+  if ([method isEqualToString:@"PROPPATCH"]) return YES;
   if ([method isEqualToString:@"MKCOL"]) return YES;
   if ([method isEqualToString:@"MOVE"]) return YES;
   if ([method isEqualToString:@"COPY"]) return YES;
@@ -46,6 +47,9 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
 }
 
 - (BOOL) expectsRequestBodyFromMethod:(NSString*)method atPath:(NSString*)path {
+    
+    HTTPLogTrace2(@"expectsRequestBodyFromMethod:%@ atPath:%@", method, path);
+    
     // PUTResponse
     if ([method isEqualToString:@"PUT"]) {
         return YES;
@@ -55,7 +59,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
     }
     
     // DAVResponse
-    if ([method isEqual:@"PROPFIND"] || [method isEqual:@"MKCOL"]) {
+    if ([method isEqual:@"PROPFIND"] || [method isEqual:@"PROPPATCH"] || [method isEqual:@"MKCOL"]) {
         return [request headerField:@"Content-Length"] ? YES : NO;
     }
     if ([method isEqual:@"LOCK"]) {
@@ -138,8 +142,15 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
     }
   }
   
-  if ([method isEqualToString:@"OPTIONS"] || [method isEqualToString:@"PROPFIND"] || [method isEqualToString:@"MKCOL"] ||
-    [method isEqualToString:@"MOVE"] || [method isEqualToString:@"COPY"] || [method isEqualToString:@"LOCK"] || [method isEqualToString:@"UNLOCK"]) {
+  if ([method isEqualToString:@"OPTIONS"] ||
+      [method isEqualToString:@"PROPFIND"] ||
+      [method isEqualToString:@"PROPPATCH"] ||
+      [method isEqualToString:@"MKCOL"] ||
+      [method isEqualToString:@"MOVE"] ||
+      [method isEqualToString:@"COPY"] ||
+      [method isEqualToString:@"LOCK"] ||
+      [method isEqualToString:@"UNLOCK"])
+  {
     NSString* filePath = [self filePathForURI:path allowDirectory:YES];
     if (filePath) {
       NSString* rootPath = [config documentRoot];
