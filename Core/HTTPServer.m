@@ -408,6 +408,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_INFO; // | HTTP_LOG_FLAG_TRACE;
 	__block BOOL success = YES;
 	__block NSError *err = nil;
 	
+    [self willChangeValueForKey: @"isRunning"];
 	dispatch_sync(serverQueue, ^{ @autoreleasepool {
 		
 		success = [asyncSocket acceptOnInterface:interface port:port error:&err];
@@ -423,7 +424,8 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_INFO; // | HTTP_LOG_FLAG_TRACE;
 			HTTPLogError(@"%@: Failed to start HTTP Server: %@", THIS_FILE, err);
 		}
 	}});
-	
+    [self didChangeValueForKey: @"isRunning"];
+
 	if (errPtr)
 		*errPtr = err;
 	
@@ -438,7 +440,8 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_INFO; // | HTTP_LOG_FLAG_TRACE;
 - (void)stop:(BOOL)keepExistingConnections
 {
 	HTTPLogTrace();
-	
+
+    [self willChangeValueForKey: @"isRunning"];
 	dispatch_sync(serverQueue, ^{ @autoreleasepool {
 		
 		// First stop publishing the service via bonjour
@@ -469,6 +472,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_INFO; // | HTTP_LOG_FLAG_TRACE;
 			[webSocketsLock unlock];
 		}
 	}});
+    [self didChangeValueForKey: @"isRunning"];
 }
 
 - (BOOL)isRunning
