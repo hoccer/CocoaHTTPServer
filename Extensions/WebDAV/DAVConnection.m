@@ -11,12 +11,12 @@
 #define HTTP_ASYNC_FILE_RESPONSE_THRESHOLD (16 * 1024 * 1024)
 
 static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
+//static const int httpLogLevel = HTTP_LOG_LEVEL_WARN | HTTP_LOG_FLAG_TRACE;
 
 @implementation DAVConnection
 
 - (void) dealloc {
   [requestContentStream close];
-  
 }
 
 - (BOOL) supportsMethod:(NSString*)method atPath:(NSString*)path {
@@ -108,14 +108,19 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
 }
 
 - (NSObject<HTTPResponse>*) httpResponseForMethod:(NSString*)method URI:(NSString*)path {
+    
+    HTTPLogTrace2(@"httpResponseForMethod:%@ atPath:%@", method, path);
+    
   if ([method isEqualToString:@"HEAD"] || [method isEqualToString:@"GET"]) {
     NSString* filePath = [self filePathForURI:path allowDirectory:NO];
     if (filePath) {
       NSDictionary* fileAttributes = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:NULL];
       if (fileAttributes) {
         if ([[fileAttributes objectForKey:NSFileSize] unsignedLongLongValue] > HTTP_ASYNC_FILE_RESPONSE_THRESHOLD) {
+            HTTPLogTrace2(@"httpResponseForMethod:%@ returning HTTPAsyncFileResponse path:%@",method, filePath);
           return [[HTTPAsyncFileResponse alloc] initWithFilePath:filePath forConnection:self];
         } else {
+            HTTPLogTrace2(@"httpResponseForMethod:%@ returning HTTPFileResponse path:%@",method, filePath);
           return [[HTTPFileResponse alloc] initWithFilePath:filePath forConnection:self];
         }
       }
@@ -126,8 +131,10 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
     NSString* filePath = [self filePathForURI:path allowDirectory:YES];
     if (filePath) {
       if ([requestContentBody isKindOfClass:[NSString class]]) {
-        return [[PUTResponse alloc] initWithFilePath:filePath headers:[request allHeaderFields] bodyFile:requestContentBody];
+          HTTPLogTrace2(@"httpResponseForMethod:%@ returning PUTResponse for bodyFile",method);
+       return [[PUTResponse alloc] initWithFilePath:filePath headers:[request allHeaderFields] bodyFile:requestContentBody];
       } else if ([requestContentBody isKindOfClass:[NSData class]]) {
+          HTTPLogTrace2(@"httpResponseForMethod:%@ returning PUTResponse for bodyData",method);
         return [[PUTResponse alloc] initWithFilePath:filePath headers:[request allHeaderFields] bodyData:requestContentBody];
       } else {
         HTTPLogError(@"Internal error");
@@ -138,6 +145,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
 	if ([method isEqualToString:@"DELETE"]) {
     NSString* filePath = [self filePathForURI:path allowDirectory:YES];
     if (filePath) {
+        HTTPLogTrace2(@"httpResponseForMethod:%@ returning DELETEResponse path:%@",method, filePath);
       return [[DELETEResponse alloc] initWithFilePath:filePath];
     }
   }
@@ -163,6 +171,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
           return nil;
         }
       }
+        HTTPLogTrace2(@"httpResponseForMethod:%@ returning DAVResponse resourcePath:%@",method, resourcePath);
       return [[DAVResponse alloc] initWithMethod:method
                                           headers:[request allHeaderFields]
                                          bodyData:requestContentBody

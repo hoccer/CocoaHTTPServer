@@ -4,6 +4,9 @@
 #import "HTTPLogging.h"
 #import "AppDelegate.h"
 
+#define DUMP_DAV_BODY NO
+#define DUMP_DAV_RESPONSE NO
+
 // WebDAV specifications: http://webdav.org/specs/rfc4918.html
 
 typedef enum {
@@ -185,8 +188,10 @@ static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
             
             NSMutableArray * propertyNames = [NSMutableArray new];
             
-            //NSString * testBody = [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding];
-            //NSLog(@"PROPPATCH body=%@", testBody);
+            if (DUMP_DAV_BODY)  {
+                NSString * testBody = [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding];
+                NSLog(@"PROPPATCH body=%@", testBody);
+            }
             
             xmlDocPtr document = xmlReadMemory(body.bytes, (int)body.length, NULL, NULL, kXMLParseOptions);
             if (document) {
@@ -237,6 +242,10 @@ static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
             } else {
                 HTTPLogError(@"Unsupported DAV depth \"%@\"", depthHeader);
                 return nil;
+            }
+            if (DUMP_DAV_BODY)  {
+                NSString * testBody = [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding];
+                NSLog(@"PROPFIND body=%@", testBody);
             }
             
             DAVProperties properties = 0;
@@ -477,7 +486,7 @@ static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
         
     }
     
-    // NSLog(@"DAV responding with status %ld data:\n%@", (long)_status, [[NSString alloc] initWithData:_data encoding:NSUTF8StringEncoding]);
+    if (DUMP_DAV_RESPONSE) NSLog(@"DAV responding with status %ld data:\n%@", (long)_status, [[NSString alloc] initWithData:_data encoding:NSUTF8StringEncoding]);
     return self;
 }
 
