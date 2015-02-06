@@ -46,21 +46,27 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
 }
 */
 
+
+
 - (id) initWithFilePath:(NSString*)path {
     if ((self = [super init])) {
         BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:path];
+#ifdef FORBID_DELETION_OF_READ_ONLY_FILES
         BOOL readOnly = [DELETEResponse isUserReadOnlyFile:path];
         if (readOnly) {
             _status = 405;
             HTTPLogError(@"Failed deleting readonly file \"%@\"", path);
         } else {
+#endif
             if ([[NSFileManager defaultManager] removeItemAtPath:path error:NULL]) {
                 _status = exists ? 200 : 204;
             } else {
                 HTTPLogError(@"Failed deleting \"%@\"", path);
                 _status = 404;
             }
+#ifdef FORBID_DELETION_OF_READ_ONLY_FILES
         }
+#endif
     }
     return self;
 }
