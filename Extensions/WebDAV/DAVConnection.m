@@ -75,9 +75,12 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
   
   if (contentLength > HTTP_BODY_MAX_MEMORY_SIZE) {
     requestContentBody = [[NSTemporaryDirectory() stringByAppendingString:[[NSProcessInfo processInfo] globallyUniqueString]] copy];
+      //NSLog(@"Initialized output stream to file %@, expecting size %llu", requestContentBody, contentLength);
     requestContentStream = [[NSOutputStream alloc] initToFileAtPath:requestContentBody append:NO];
-    [requestContentStream open];
+      [requestContentStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+      [requestContentStream open];
   } else {
+      //NSLog(@"Initialized body memory for expected size %llu", contentLength);
     requestContentBody = [[NSMutableData alloc] initWithCapacity:(NSUInteger)contentLength];
     requestContentStream = nil;
   }
@@ -86,6 +89,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
 - (void) processBodyData:(NSData*)postDataChunk {
 	NSAssert(requestContentBody != nil, @"requestContentBody should not be nil");
   if (requestContentStream) {
+      //NSLog(@"processBodyData: postdatachunk size = %lu",(unsigned long) [postDataChunk length]);
     [requestContentStream write:[postDataChunk bytes] maxLength:[postDataChunk length]];
   } else {
     [(NSMutableData*)requestContentBody appendData:postDataChunk];
@@ -96,6 +100,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
   NSAssert(requestContentBody != nil, @"requestContentBody should not be nil");
   if (requestContentStream) {
     [requestContentStream close];
+    [requestContentStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
     requestContentStream = nil;
   }
 }
