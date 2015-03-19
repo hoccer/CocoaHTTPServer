@@ -39,8 +39,8 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_INFO; // | HTTP_LOG_FLAG_TRACE;
 		HTTPLogTrace();
 		
 		// Setup underlying dispatch queues
-		serverQueue = dispatch_queue_create("HTTPServer", NULL);
-		connectionQueue = dispatch_queue_create("HTTPConnection", NULL);
+		serverQueue = dispatch_queue_create("HTTPServer", DISPATCH_QUEUE_CONCURRENT);
+		connectionQueue = dispatch_queue_create("HTTPConnection", DISPATCH_QUEUE_CONCURRENT);
 		
 		IsOnServerQueueKey = &IsOnServerQueueKey;
 		IsOnConnectionQueueKey = &IsOnConnectionQueueKey;

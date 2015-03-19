@@ -6,6 +6,7 @@
 
 #define DUMP_DAV_BODY NO
 #define DUMP_DAV_RESPONSE NO
+#define DUMP_DAV_RESPONSE_SHORT NO
 
 // WebDAV specifications: http://webdav.org/specs/rfc4918.html
 
@@ -52,77 +53,118 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN;
     return nil;
 }
 
+static NSDateFormatter * _davCreationDateFormatter = nil;
+
+static NSDateFormatter * getCreationDateFormatter() {
+    if (_davCreationDateFormatter == nil) {
+        NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
+        formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+        formatter.timeZone = [NSTimeZone timeZoneWithName:@"GMT"];
+        formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss'+00:00'";
+        _davCreationDateFormatter = formatter;
+    }
+    return _davCreationDateFormatter;
+}
+
+static NSDateFormatter * _davModificationDateFormatter = nil;
+
+static NSDateFormatter * getModificationDateFormatter() {
+    if (_davModificationDateFormatter == nil) {
+        NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
+        formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+        formatter.timeZone = [NSTimeZone timeZoneWithName:@"GMT"];
+        formatter.dateFormat = @"EEE', 'd' 'MMM' 'yyyy' 'HH:mm:ss' GMT'";
+        _davModificationDateFormatter = formatter;
+    }
+    return _davModificationDateFormatter;
+}
+
+
 static void _AddPropertyResponse(NSString* itemPath, NSString* resourcePath, DAVProperties properties, NSMutableString* xmlString) {
-    CFStringRef escapedPath = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (__bridge CFStringRef)resourcePath, NULL,
-                                                                      CFSTR("<&>?+"), kCFStringEncodingUTF8);
-    if (escapedPath) {
-        NSDictionary* attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:itemPath error:NULL];
-        BOOL isDirectory = [[attributes fileType] isEqualToString:NSFileTypeDirectory];
-        [xmlString appendString:@"<D:response>"];
-        [xmlString appendFormat:@"<D:href>%@</D:href>", escapedPath];
-        [xmlString appendString:@"<D:propstat>"];
-        [xmlString appendString:@"<D:prop>"];
-        
-        if (properties & kDAVProperty_ResourceType) {
-            if (isDirectory) {
-                [xmlString appendString:@"<D:resourcetype><D:collection/></D:resourcetype>"];
-            } else {
-                [xmlString appendString:@"<D:resourcetype/>"];
+    @autoreleasepool {
+        static CFStringRef eChars = CFSTR("<&>?+");
+        CFStringRef escapedPath = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (__bridge CFStringRef)resourcePath, NULL,
+                                                                          eChars, kCFStringEncodingUTF8);
+        if (escapedPath) {
+            NSDictionary* attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:itemPath error:NULL];
+            BOOL isDirectory = [[attributes fileType] isEqualToString:NSFileTypeDirectory];
+            [xmlString appendString:@"<D:response>"];
+            [xmlString appendFormat:@"<D:href>%@</D:href>", escapedPath];
+            [xmlString appendString:@"<D:propstat>"];
+            [xmlString appendString:@"<D:prop>"];
+            
+            if (properties & kDAVProperty_ResourceType) {
+                if (isDirectory) {
+                    [xmlString appendString:@"<D:resourcetype><D:collection/></D:resourcetype>"];
+                } else {
+                    [xmlString appendString:@"<D:resourcetype/>"];
+                }
             }
-        }
-        
-        if ((properties & kDAVProperty_CreationDate) && [attributes objectForKey:NSFileCreationDate]) {
-            NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
-            formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
-            formatter.timeZone = [NSTimeZone timeZoneWithName:@"GMT"];
-            formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss'+00:00'";
-            [xmlString appendFormat:@"<D:creationdate>%@</D:creationdate>", [formatter stringFromDate:[attributes fileCreationDate]]];
-        }
-        
-        if ((properties & kDAVProperty_LastModified) && [attributes objectForKey:NSFileModificationDate]) {
-            NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
-            formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
-            formatter.timeZone = [NSTimeZone timeZoneWithName:@"GMT"];
-            formatter.dateFormat = @"EEE', 'd' 'MMM' 'yyyy' 'HH:mm:ss' GMT'";
-            [xmlString appendFormat:@"<D:getlastmodified>%@</D:getlastmodified>", [formatter stringFromDate:[attributes fileModificationDate]]];
-        }
-        
-        if ((properties & kDAVProperty_ContentLength) && !isDirectory && [attributes objectForKey:NSFileSize]) {
-            [xmlString appendFormat:@"<D:getcontentlength>%qu</D:getcontentlength>", [attributes fileSize]];
-        }
-        
-        if ((properties & kDAVProperty_ETag)) {
-            NSString * etag = [DAVResponse etagFromAttributes:attributes];
-            if (etag != nil) {
-                [xmlString appendFormat:@"<D:getetag>%@</D:getetag>", etag];
+            
+            if ((properties & kDAVProperty_CreationDate) && [attributes objectForKey:NSFileCreationDate]) {
+#ifdef INLINE_FORMATTER
+                NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
+                formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+                formatter.timeZone = [NSTimeZone timeZoneWithName:@"GMT"];
+                formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss'+00:00'";
+#else
+                NSDateFormatter* formatter = getCreationDateFormatter();
+#endif
+                [xmlString appendFormat:@"<D:creationdate>%@</D:creationdate>", [formatter stringFromDate:[attributes fileCreationDate]]];
             }
+            
+            if ((properties & kDAVProperty_LastModified) && [attributes objectForKey:NSFileModificationDate]) {
+#ifdef INLINE_FORMATTER
+                NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
+                formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+                formatter.timeZone = [NSTimeZone timeZoneWithName:@"GMT"];
+                formatter.dateFormat = @"EEE', 'd' 'MMM' 'yyyy' 'HH:mm:ss' GMT'";
+#else
+                NSDateFormatter* formatter = getModificationDateFormatter();
+
+#endif
+                [xmlString appendFormat:@"<D:getlastmodified>%@</D:getlastmodified>", [formatter stringFromDate:[attributes fileModificationDate]]];
+            }
+            
+            if ((properties & kDAVProperty_ContentLength) && !isDirectory && [attributes objectForKey:NSFileSize]) {
+                [xmlString appendFormat:@"<D:getcontentlength>%qu</D:getcontentlength>", [attributes fileSize]];
+            }
+            
+            if ((properties & kDAVProperty_ETag)) {
+                NSString * etag = [DAVResponse etagFromAttributes:attributes];
+                if (etag != nil) {
+                    [xmlString appendFormat:@"<D:getetag>%@</D:getetag>", etag];
+                }
+            }
+            
+            if ((properties & kDAVProperty_QuotaAvailableBytes)) {
+                [xmlString appendFormat:@"<D:quota-available-bytes>%qu</D:quota-available-bytes>", [AppDelegate freeDiskSpace]];
+            }
+            
+            if ((properties & kDAVProperty_QuotaUsedBytes)) {
+                [xmlString appendFormat:@"<D:quota-used-bytes>%qu</D:quota-used-bytes>", [AppDelegate usedDiskSpace]];
+            }
+            if ((properties & kDAVProperty_Quota)) {
+                [xmlString appendFormat:@"<D:quota>%qu</D:quota>", [AppDelegate freeDiskSpace]];
+            }
+            
+            if ((properties & kDAVProperty_QuotaUsed)) {
+                [xmlString appendFormat:@"<D:quotaused>%qu</D:quotaused>", [AppDelegate usedDiskSpace]];
+            }
+            
+            [xmlString appendString:@"</D:prop>"];
+            [xmlString appendString:@"<D:status>HTTP/1.1 200 OK</D:status>"];
+            [xmlString appendString:@"</D:propstat>"];
+            [xmlString appendString:@"</D:response>\n"];
+            
+            CFRelease(escapedPath);
+            //NSLog(@"_AddPropertyResponse: set response:\n %@", xmlString);
         }
-       
-        if ((properties & kDAVProperty_QuotaAvailableBytes)) {
-            [xmlString appendFormat:@"<D:quota-available-bytes>%qu</D:quota-available-bytes>", [AppDelegate freeDiskSpace]];
-        }
-        
-        if ((properties & kDAVProperty_QuotaUsedBytes)) {
-            [xmlString appendFormat:@"<D:quota-used-bytes>%qu</D:quota-used-bytes>", [AppDelegate usedDiskSpace]];
-        }
-        if ((properties & kDAVProperty_Quota)) {
-            [xmlString appendFormat:@"<D:quota>%qu</D:quota>", [AppDelegate freeDiskSpace]];
-        }
-        
-        if ((properties & kDAVProperty_QuotaUsed)) {
-            [xmlString appendFormat:@"<D:quotaused>%qu</D:quotaused>", [AppDelegate usedDiskSpace]];
-        }
-        
-        [xmlString appendString:@"</D:prop>"];
-        [xmlString appendString:@"<D:status>HTTP/1.1 200 OK</D:status>"];
-        [xmlString appendString:@"</D:propstat>"];
-        [xmlString appendString:@"</D:response>\n"];
-        CFRelease(escapedPath);
-        //NSLog(@"_AddPropertyResponse: set response:\n %@", xmlString);
     }
 }
 
 static void _AddPropPatchResponse(NSString* itemPath, NSString* resourcePath, NSArray* propertyNames, NSString* statusString, NSMutableString* xmlString) {
+    
     CFStringRef escapedPath = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (__bridge CFStringRef)resourcePath, NULL,
                                                                       CFSTR("<&>?+"), kCFStringEncodingUTF8);
     if (escapedPath) {
@@ -144,8 +186,6 @@ static void _AddPropPatchResponse(NSString* itemPath, NSString* resourcePath, NS
     }
 }
 
-
-
 static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
     while (child) {
         if ((child->type == XML_ELEMENT_NODE) && !xmlStrcmp(child->name, name)) {
@@ -157,6 +197,8 @@ static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
 }
 
 - (id) initWithMethod:(NSString*)method headers:(NSDictionary*)headers bodyData:(NSData*)body resourcePath:(NSString*)resourcePath rootPath:(NSString*)rootPath {
+    NSDate * start = [NSDate new];
+
     if ((self = [super init])) {
         _status = 200;
         _headers = [[NSMutableDictionary alloc] init];
@@ -485,8 +527,12 @@ static xmlNodePtr _XMLChildWithName(xmlNodePtr child, const xmlChar* name) {
         }
         
     }
+    NSDate * stop = [NSDate new];
     
     if (DUMP_DAV_RESPONSE) NSLog(@"DAV responding with status %ld data:\n%@", (long)_status, [[NSString alloc] initWithData:_data encoding:NSUTF8StringEncoding]);
+    
+    if (DUMP_DAV_RESPONSE_SHORT) NSLog(@"DAV responding with status %ld len %lu, took %03f", (long)_status, (unsigned long)_data.length, [stop timeIntervalSinceDate:start]);
+
     return self;
 }
 
