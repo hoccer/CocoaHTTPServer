@@ -189,7 +189,8 @@ static NSMutableArray *recentNonces;
 		}
 		else
 		{
-			connectionQueue = dispatch_queue_create("HTTPConnection", NULL);
+            //connectionQueue = dispatch_queue_create("HTTPConnection", NULL);
+            connectionQueue = dispatch_queue_create("HTTPConnection", DISPATCH_QUEUE_SERIAL);
 		}
 		
 		// Take over ownership of the socket

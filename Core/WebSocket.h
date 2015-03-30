@@ -19,7 +19,7 @@
 	BOOL isOpen;
 	BOOL isVersion76;
 	
-	id __unsafe_unretained delegate;
+	id __weak delegate;
 }
 
 + (BOOL)isWebSocketRequest:(HTTPMessage *)request;

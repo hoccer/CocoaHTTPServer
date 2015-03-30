@@ -29,6 +29,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
 	{
 		HTTPLogTrace();
 		
+        buffer = nil;
 		connection = parent; // Parents retain children, children do NOT retain parents
 		
 		fileFD = NULL_FD;
@@ -181,6 +182,7 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
 	{
 		bufferSize = bytesToRead;
 		buffer = reallocf(buffer, (size_t)bufferSize);
+        //NSLog(@"readDataOfLength %lu realloc buffer=%lx %lx", length, (unsigned long)buffer,(unsigned long)(__bridge void*)self);
 		
 		if (buffer == NULL)
 		{
@@ -239,9 +241,10 @@ static const int httpLogLevel = HTTP_LOG_LEVEL_WARN; // | HTTP_LOG_FLAG_TRACE;
 
 - (void)dealloc
 {
+    //NSLog(@"dealloc %lx", (unsigned long)(__bridge void*)self);
 	HTTPLogTrace();
 	
-	if (fileFD != NULL_FD)
+	if (fileFD != NULL_FD && fileFD != 0)
 	{
 		HTTPLogVerbose(@"%@[%p]: Close fd[%i]", THIS_FILE, self, fileFD);
 		
